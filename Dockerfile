@@ -2,8 +2,9 @@
 # 阶段 1: 基础环境和依赖安装
 # -----------------------------------------------------------------------------
 # 选择一个轻量级的、包含 Python 3.10 的官方镜像作为基础
+# 使用阿里云镜像源避免Docker Hub拉取限制
 # bookworm 是 Debian 12 的代号，是一个稳定且更新的操作系统版本
-FROM python:3.10-slim-bookworm
+FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.10-slim-bookworm
 
 # 设置一些环境变量，优化 Python 运行
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -44,12 +45,12 @@ COPY . .
 
 # 声明容器将要监听的端口。这主要是为了文档目的。
 # 真正让应用监听这个端口的是下面的 CMD 指令。
-EXPOSE 5000
+EXPOSE 9000
 
 # 定义容器启动时要执行的命令。
 # 这是函数计算平台（FC）启动我们应用的方式。
 # 我们使用 Gunicorn 这个生产级的 Web 服务器来运行我们的 Flask 应用。
 # --workers=4: 启动4个工作进程处理请求
-# --bind 0.0.0.0:5000: 监听所有网络接口的 5000 端口
+# --bind 0.0.0.0:9000: 监听所有网络接口的 9000 端口
 # app:app: 运行 app.py 文件中的名为 app 的 Flask 实例
-CMD ["gunicorn", "--workers=4", "--bind", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "--workers=4", "--bind", "0.0.0.0:9000", "app:app"]
