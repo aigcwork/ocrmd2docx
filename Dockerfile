@@ -2,9 +2,9 @@
 # 阶段 1: 基础环境和依赖安装
 # -----------------------------------------------------------------------------
 # 选择一个轻量级的、包含 Python 3.10 的官方镜像作为基础
-# 使用腾讯云镜像源避免Docker Hub拉取限制
+# 使用网易云镜像源避免Docker Hub拉取限制
 # bookworm 是 Debian 12 的代号，是一个稳定且更新的操作系统版本
-FROM ccr.ccs.tencentyun.com/library/python:3.10-slim-bookworm
+FROM hub.c.163.com/library/python:3.10-slim-bookworm
 
 # 设置一些环境变量，优化 Python 运行
 ENV PYTHONDONTWRITEBYTECODE 1
