@@ -2,9 +2,8 @@
 # 阶段 1: 基础环境和依赖安装
 # -----------------------------------------------------------------------------
 # 选择一个轻量级的、包含 Python 3.10 的官方镜像作为基础
-# 使用阿里云ACR镜像源，避免Docker Hub拉取限制
-# 请将下面的ACR域名替换为您自己的ACR域名
-FROM registry.cn-<region>.aliyuncs.com/<命名空间>/python-base:3.10-slim-bookworm
+# 使用阿里云ACR提供的公共Python镜像，避免Docker Hub拉取限制
+FROM registry.cn-hongkong.aliyuncs.com/library/python:3.10-slim
 
 # 设置一些环境变量，优化 Python 运行
 ENV PYTHONDONTWRITEBYTECODE 1
