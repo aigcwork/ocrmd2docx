@@ -25,6 +25,7 @@ MD2DOCX 后端服务是一个基于 Flask 的 Web 应用程序，提供 Markdown
 - 请求日志记录
 - 跨域支持（CORS）
 - Docker 容器化部署支持
+- 阿里云函数计算部署支持
 
 ## 技术栈
 
@@ -33,25 +34,71 @@ MD2DOCX 后端服务是一个基于 Flask 的 Web 应用程序，提供 Markdown
 - **跨域支持**: flask-cors 4.0.0
 - **容器化**: Docker
 - **AI 模型**: 豆包大模型 API
+- **云平台**: 阿里云函数计算 + 容器镜像服务 (ACR)
 
-## 安装与运行
+## 部署方式
 
-### 1. 环境要求
+### 1. 阿里云函数计算 + ACR 镜像部署（推荐）
+
+本项目推荐使用阿里云函数计算结合容器镜像服务（ACR）进行部署，这种方式具有以下优势：
+- 环境稳定性高
+- 依赖管理简单
+- 冷启动速度快
+- 配置灵活
+- 适合复杂应用
+
+#### 快速部署步骤
+
+1. **准备环境变量**
+   ```bash
+   # 设置阿里云账号信息
+   set ACCOUNT_ID=your_account_id
+   set REGION=cn-hangzhou
+   set NAMESPACE=your_namespace
+   set REPO_NAME=md2docx
+   set DOUBAO_API_KEY=your_doubao_api_key
+   ```
+
+2. **构建并推送镜像**
+   ```bash
+   # 运行部署脚本
+   h:\apps\md2d\build-and-deploy-acr.bat
+   ```
+
+3. **配置函数计算**
+   - 登录阿里云函数计算控制台
+   - 创建新函数，选择"容器镜像"方式
+   - 配置实例规格（推荐：1.5 vCPU, 3072MB内存）
+   - 设置环境变量 `DOUBAO_API_KEY`
+   - 创建HTTP触发器
+
+4. **测试函数**
+   - 使用提供的测试API验证功能
+   - 检查日志确保正常运行
+
+详细部署指南请参考：
+- [ACR镜像快速部署指南](../docs/ACR镜像快速部署指南.md)
+- [基于ACR镜像的阿里云函数部署指南](../docs/基于ACR镜像的阿里云函数部署指南.md)
+- [函数实例配置建议](../docs/函数实例配置建议.md)
+
+### 2. 本地开发部署
+
+#### 环境要求
 - Python 3.8+
 - 豆包大模型 API 密钥
 
-### 2. 安装依赖
+#### 安装依赖
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone https://github.com/aigcwork/ocrmd2docx.git
 cd md2docx
 
 # 安装依赖
 pip install -r requirements.txt
 ```
 
-### 3. 配置环境变量
+#### 配置环境变量
 
 创建 `.env` 文件并配置以下变量：
 
@@ -65,7 +112,7 @@ DOUBAO_MODEL=doubao-seed-1-6-251015
 MAX_CONTENT_LENGTH=16777216  # 最大请求内容长度（16MB）
 ```
 
-### 4. 运行应用
+#### 运行应用
 
 ```bash
 # 开发模式运行
@@ -76,7 +123,7 @@ pip install gunicorn
 gunicorn -w 4 -b 0.0.0.0:5000 app:app
 ```
 
-### 5. Docker 部署
+#### Docker 部署
 
 ```bash
 # 构建镜像
@@ -198,6 +245,67 @@ curl -X POST http://localhost:5000/api/recognize \
 - 对相同图片的识别结果进行缓存
 - 设置合理的缓存过期时间
 
+### 4. 函数计算优化
+- 配置合适的实例规格和预留实例
+- 优化冷启动时间
+- 合理设置超时时间
+- 使用并发处理提高吞吐量
+
+详细优化方案请参考：
+- [图片识别功能优化方案](../docs/图片识别功能优化方案.md)
+- [函数实例配置建议](../docs/函数实例配置建议.md)
+
+
+
+## 故障排除
+
+### 常见问题
+
+1. **函数冷启动慢**
+   - 增加预留实例数量
+   - 优化镜像大小
+   - 使用预热策略
+
+2. **内存不足错误**
+   - 增加内存配置
+   - 优化代码内存使用
+   - 检查是否有内存泄漏
+
+3. **API调用超时**
+   - 增加超时时间配置
+   - 优化API调用逻辑
+   - 检查网络连接
+
+4. **图片识别失败**
+   - 检查API密钥是否正确
+   - 验证图片格式是否支持
+   - 检查图片大小是否超限
+
+更多故障排除方法请参考：
+- [ACR镜像快速部署指南](../docs/ACR镜像快速部署指南.md)
+- [基于ACR镜像的阿里云函数部署指南](../docs/基于ACR镜像的阿里云函数部署指南.md)
+
+
+
+## 版本更新
+
+### 更新函数代码
+
+1. 修改代码后重新构建镜像
+2. 推送新镜像到ACR
+3. 在函数计算中更新镜像版本
+4. 测试新版本功能
+
+### 版本回滚
+
+1. 在函数计算中选择历史镜像版本
+2. 更新函数配置
+3. 验证回滚后功能正常
+
+## 许可证
+
+本项目采用 MIT 许可证。详情请参阅 [LICENSE](LICENSE) 文件。
+
 ## 安全考虑
 
 ### 1. API 密钥安全
@@ -215,25 +323,6 @@ curl -X POST http://localhost:5000/api/recognize \
 - 限制 API 调用频率
 - 记录和监控异常访问
 
-## 故障排除
-
-### 1. 常见问题
-
-**问题**: 应用启动失败
-**解决方案**: 检查 Python 版本和依赖是否正确安装
-
-**问题**: OCR 识别失败
-**解决方案**: 检查 API 密钥是否正确，网络连接是否正常
-
-**问题**: 图片上传失败
-**解决方案**: 检查图片格式和大小是否符合要求
-
-### 2. 调试技巧
-
-- 使用 `DEBUG=True` 运行应用以获取详细错误信息
-- 检查应用日志以定位问题
-- 使用 API 测试工具（如 Postman）测试接口
-
 ## 开发指南
 
 ### 1. 项目结构
@@ -244,6 +333,7 @@ md2docx/
 ├── .env.example       # 环境变量示例
 ├── .dockerignore      # Docker 忽略文件
 ├── Dockerfile         # Docker 配置文件
+├── Dockerfile.acr     # ACR 优化 Docker 配置文件
 └── README.md          # 项目说明文档
 ```
 
@@ -265,10 +355,6 @@ pip install pytest
 pytest
 ```
 
-## 许可证
-
-本项目采用 MIT 许可证。详情请参阅 LICENSE 文件。
-
 ## 贡献指南
 
 欢迎提交 Issue 和 Pull Request 来改进项目。
@@ -276,5 +362,5 @@ pytest
 ## 联系方式
 
 如有问题或建议，请通过以下方式联系：
-- 提交 Issue: [项目 Issues 页面]
-- 邮箱: [ixujue@163.com]
+- 提交 Issue: [项目 Issues 页面](https://github.com/aigcwork/ocrmd2docx/issues)
+- 邮箱: [ixujue@163.com](mailto:ixujue@163.com)
