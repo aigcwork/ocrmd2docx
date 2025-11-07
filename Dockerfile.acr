@@ -20,6 +20,11 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
     curl \
+    pandoc \
+    texlive-xetex \
+    texlive-latex-base \
+    texlive-fonts-recommended \
+    texlive-lang-chinese \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
