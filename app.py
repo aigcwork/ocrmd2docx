@@ -72,7 +72,7 @@ def convert_markdown_to_docx():
         command = [
             'pandoc',
             '--from', # 输入格式
-            'markdown+tex_math_dollars+tex_math_single_backslash', # 支持 LaTeX 数学公式
+            'markdown', # 使用基本markdown格式，避免LaTeX依赖
             input_md_path,
             '-o',
             output_docx_path,
