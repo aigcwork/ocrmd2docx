@@ -3,8 +3,8 @@
 # -----------------------------------------------------------------------------
 # 选择一个轻量级的、包含 Python 3.10 的官方镜像作为基础
 # 使用官方Python镜像源
-# 使用更通用的python:3.10-slim镜像，提高兼容性
-FROM python:3.10-slim
+# 使用与之前成功部署相同的镜像版本
+FROM docker.io/library/python:3.10-slim-bookworm
 
 # 设置一些环境变量，优化 Python 运行
 ENV PYTHONDONTWRITEBYTECODE 1
