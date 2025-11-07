@@ -1,0 +1,25 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  md2docx-service:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: 'md2docx conversion service'
+      InternetAccess: true
+    md2docx-function:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Description: 'Convert markdown to docx'
+        Handler: app.app
+        Runtime: python3.9
+        CodeUri: ./
+        MemorySize: 1024
+        Timeout: 120
+        EnvironmentVariables:
+          DOUBAO_API_KEY: your_api_key_here
+        Events:
+          http-trigger:
+            Type: HTTP
+            Properties:
+              AuthType: ANONYMOUS
+              Methods: ['POST', 'GET']
