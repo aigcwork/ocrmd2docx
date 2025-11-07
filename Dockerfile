@@ -42,6 +42,15 @@ RUN pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ -
 # 复制项目目录下的所有文件到容器的 /app 目录中
 COPY . .
 
+# 如果不存在reference.docx文件，则创建一个基本的
+RUN if [ ! -f reference.docx ]; then \
+    echo "创建基本的reference.docx文件..." && \
+    apt-get update && apt-get install -y pandoc-data && \
+    pandoc -o reference.docx --print-default-data-file reference.docx && \
+    apt-get remove -y pandoc-data && apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*; \
+    fi
+
 # 声明容器将要监听的端口。这主要是为了文档目的。
 # 真正让应用监听这个端口的是下面的 CMD 指令。
 EXPOSE 9000
