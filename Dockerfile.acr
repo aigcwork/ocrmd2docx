@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libffi-dev \
     libssl-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -30,6 +31,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
 COPY . .
+
+# 确保reference.docx文件存在
+COPY reference.docx /app/reference.docx
 
 # 创建必要的目录
 RUN mkdir -p /tmp/outputs /tmp/uploads
