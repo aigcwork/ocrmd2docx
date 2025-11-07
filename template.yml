@@ -1,0 +1,25 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: Aliyun::Serverless-2018-04-03
+Resources:
+  md2docx-service:
+    Type: Aliyun::Serverless::Service
+    Properties:
+      Description: 'MD2DOCX Backend Service'
+      InternetAccess: true
+    md2docx-function:
+      Type: Aliyun::Serverless::Function
+      Properties:
+        Description: 'MD2DOCX Backend Function'
+        Handler: index.handler
+        Runtime: python3.9
+        CodeUri: ./
+        MemorySize: 1024
+        Timeout: 120
+        EnvironmentVariables:
+          DOUBAO_API_KEY: ${env.DOUBAO_API_KEY}
+        Events:
+          httpTrigger:
+            Type: HTTP
+            Properties:
+              AuthType: ANONYMOUS
+              Methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS']

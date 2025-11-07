@@ -1,6 +1,9 @@
 import os
 import uuid
 import subprocess
+import base64
+import json
+import requests
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 
@@ -14,7 +17,19 @@ app = Flask(__name__)
 CORS(app)
 
 # -----------------------------------------------------------------------------
-# 2. 定义临时文件存储目录
+# 2. 豆包大模型API配置
+# -----------------------------------------------------------------------------
+# 豆包大模型API配置
+DOUBAO_API_CONFIG = {
+    "url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+    "model": "doubao-seed-1-6-251015",  # 豆包模型ID
+    "api_key": os.environ.get("DOUBAO_API_KEY"),  # 从环境变量读取API密钥，必须设置
+    "max_tokens": 4000,  # 最大令牌数
+    "temperature": 0.1  # 温度参数，控制随机性
+}
+
+# -----------------------------------------------------------------------------
+# 3. 定义临时文件存储目录
 # -----------------------------------------------------------------------------
 # 函数计算环境的可写目录是 /tmp
 # 我们将在这里存放转换过程中的临时 .md 和 .docx 文件
@@ -104,6 +119,189 @@ def convert_markdown_to_docx():
             os.remove(input_md_path)
         if os.path.exists(output_docx_path):
             os.remove(output_docx_path)
+
+# -----------------------------------------------------------------------------
+# 5. 图片识别API接口
+# -----------------------------------------------------------------------------
+@app.route('/api/recognize', methods=['POST'])
+def recognize_image():
+    """
+    接收图片文件，使用豆包大模型API识别图片中的文本，并返回Markdown格式的文本。
+    """
+    # 检查是否有文件上传
+    if 'image' not in request.files:
+        return jsonify({"success": False, "message": "没有上传图片"}), 400
+    
+    file = request.files['image']
+    
+    # 检查文件名是否为空
+    if file.filename == '':
+        return jsonify({"success": False, "message": "没有选择文件"}), 400
+    
+    # 检查文件大小（限制为10MB）
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)  # 重置文件指针
+    
+    if file_size > 10 * 1024 * 1024:  # 10MB
+        return jsonify({"success": False, "message": "图片文件过大，请上传小于10MB的图片"}), 400
+    
+    # 获取识别选项
+    mode = request.form.get('mode', 'text')  # 默认为文本模式
+    include_math = request.form.get('includeMath', 'false').lower() == 'true'
+    include_tables = request.form.get('includeTables', 'false').lower() == 'true'
+    
+    try:
+        # 读取图片文件并转换为base64（不进行压缩，保持原始质量）
+        image_bytes = file.read()
+        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+        
+        # 构建请求提示词
+        prompt = build_recognition_prompt(mode, include_math, include_tables)
+        
+        # 调用豆包大模型API
+        response = call_doubao_api(image_base64, prompt)
+        
+        # 处理API响应
+        markdown_text = process_api_response(response, mode, include_math, include_tables)
+        
+        # 返回识别结果
+        return jsonify({
+            "success": True,
+            "markdown": markdown_text,
+            "mode": mode,
+            "includeMath": include_math,
+            "includeTables": include_tables
+        })
+        
+    except Exception as e:
+        print(f"图片识别错误: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"图片识别失败: {str(e)}"
+        }), 500
+
+def build_recognition_prompt(mode, include_math, include_tables):
+    """
+    构建图片识别的提示词
+    """
+    if mode == "text":
+        return "请识别图片中的文本内容，只返回纯文本，保留基本段落结构。"
+    elif mode == "document":
+        prompt = "请识别图片中的文本内容，保持原文档的格式。"
+        
+        if include_math:
+            prompt += "数学公式用LaTeX格式表示。"
+            
+        if include_tables:
+            prompt += "表格用Markdown表格格式表示。"
+            
+        return prompt
+    
+    return "请识别图片中的文本内容。"
+
+def check_api_key():
+    """
+    检查API密钥是否已设置
+    """
+    api_key = DOUBAO_API_CONFIG["api_key"]
+    if not api_key:
+        raise ValueError("API密钥未设置。请设置环境变量 DOUBAO_API_KEY")
+    return api_key
+
+def call_doubao_api(image_base64, prompt):
+    """
+    调用豆包大模型API进行图片识别
+    """
+    # 检查API密钥是否已设置
+    api_key = check_api_key()
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    
+    payload = {
+        "model": DOUBAO_API_CONFIG["model"],
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_base64}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": DOUBAO_API_CONFIG["max_tokens"],
+        "temperature": DOUBAO_API_CONFIG["temperature"]
+    }
+    
+    print(f"API URL: {DOUBAO_API_CONFIG['url']}")
+    print(f"API Model: {DOUBAO_API_CONFIG['model']}")
+    print(f"API Key: {api_key[:10]}...")  # 只打印前10个字符
+    print(f"Image base64 length: {len(image_base64)}")
+    print(f"Prompt: {prompt}")
+    
+    try:
+        # 增加超时时间到120秒，适应更大的图片
+        response = requests.post(
+            DOUBAO_API_CONFIG["url"],
+            headers=headers,
+            json=payload,
+            timeout=120  # 增加超时时间到120秒
+        )
+        
+        print(f"Response Status: {response.status_code}")
+        if response.status_code != 200:
+            print(f"Response Body: {response.text}")
+        
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.Timeout as e:
+        print(f"API请求超时: {str(e)}")
+        raise Exception(f"API请求超时，请重试或尝试更小的图片")
+    except Exception as e:
+        print(f"API请求失败: {str(e)}")
+        raise
+
+def process_api_response(response, mode, include_math, include_tables):
+    """
+    处理豆包API的响应，提取Markdown文本
+    """
+    try:
+        # 提取API响应中的文本内容
+        content = response["choices"][0]["message"]["content"]
+        
+        # 确保返回的是有效的Markdown格式
+        if not content.strip():
+            return ""
+            
+        # 根据模式进行后处理
+        if mode == "text":
+            # 纯文本模式，移除可能的Markdown标记
+            import re
+            # 移除标题标记
+            content = re.sub(r'^#+\s', '', content, flags=re.MULTILINE)
+            # 移除列表标记
+            content = re.sub(r'^\s*[-*+]\s', '', content, flags=re.MULTILINE)
+            # 移除数字列表标记
+            content = re.sub(r'^\s*\d+\.\s', '', content, flags=re.MULTILINE)
+            
+        return content.strip()
+        
+    except (KeyError, IndexError) as e:
+        print(f"处理API响应错误: {str(e)}")
+        return ""
+
+
 
 # 注意：在函数计算环境中，我们不需要 app.run()
 # Gunicorn 会直接从 Dockerfile 的 CMD 指令启动 app。
